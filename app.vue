@@ -1,9 +1,10 @@
 <template>
   <div class="wrapper">
-    <h2>Submit a Complaint</h2>
 
+    <h2>Submit a Complaint</h2>
     <!-- Form to add a new complaint -->
     <form class="complain-form" @submit.prevent="saveComplain">
+      <!-- Title input field -->
       <div class="form-group">
         <input
           v-model="title"
@@ -13,7 +14,7 @@
         />
         <p v-if="errors.title" class="error-message">{{ errors.title }}</p>
       </div>
-
+      <!-- Body textarea field -->
       <div class="form-group">
         <textarea
           v-model="body"
@@ -22,16 +23,17 @@
         ></textarea>
         <p v-if="errors.body" class="error-message">{{ errors.body }}</p>
       </div>
-
+      <!-- Submit button -->
       <button :disabled="isSaving" type="submit">
         {{ isSaving ? "Saving..." : "Submit Complaint" }}
       </button>
     </form>
 
-    <h2>Complaints List</h2>
 
+    <h2>Complaints List</h2>
     <!-- Simple loader while loading -->
     <div v-if="isLoading === 'pending'" class="loader">Loading...</div>
+    <!-- Display complaints list -->
     <template v-else-if="complains.length">
       <div
         v-for="complain in complains"
@@ -42,9 +44,11 @@
         <p>{{ complain.Body }}</p>
       </div>
     </template>
+    <!-- No complaints available message -->
     <div v-else>
       <p>No complaints available.</p>
     </div>
+
 
     <!-- Toast Notification -->
     <div v-if="toast.message" :class="['toast', toast.type]">
@@ -69,7 +73,7 @@ const isSaving = ref(false);
 const {
   data: complains,
   refresh: refreshComplains,
-  pending: isLoading,
+  status:isLoading,
 } = useFetch(`${baseUrl}${listPath}`, {
   key: "fetchComplains",
   method: "GET",
@@ -84,6 +88,7 @@ const validateForm = () => {
   }
   return !errors.value.title && !errors.value.body;
 };
+
 // Watch fields for validation errors after submission
 watch([title, body], () => {
   if (submitted.value) validateForm();
@@ -91,10 +96,11 @@ watch([title, body], () => {
 
 // Save a new complaint using useLazyFetch
 const saveComplain = async () => {
-  submitted.value = true; // Mark form as submitted
+  // Mark form as submitted
+  submitted.value = true; 
   if (!validateForm()) return;
-
-  isSaving.value = true; // Show "Saving..." status
+// Show "Saving..." status
+  isSaving.value = true; 
 
   const { execute } = useLazyFetch(`${baseUrl}${savePath}`, {
     method: "POST",
@@ -119,11 +125,12 @@ const saveComplain = async () => {
     onResponseError: () => {
       showToast("Failed to save complaint.", "error");
     },
-    immediate: false, // Do not run until explicitly executed
+    immediate: false,
   });
-
+  // Execute the POST Request
   await execute();
-  isSaving.value = false; // Hide "Saving..." status
+  // Hide "Saving..." status
+  isSaving.value = false;
 };
 
 // Show toast notification
@@ -143,7 +150,7 @@ const showToast = (message, type) => {
   --bg-color: #2c3333;
   --primery-color: #395b64;
   --secondary-color: #a5c9ca;
-  --text-color: #e7f6f2;
+  --text-color: #e7f6f2d0;
   --font-family: "Fira Code", monospace;
   --error-color: rgba(243, 94, 94, 0.973);
 }
@@ -166,33 +173,33 @@ input,
 textarea {
   outline: none;
   background: transparent;
-  border: 1px solid var(--text-color);
-  border-bottom: 4px solid var(--text-color);
+  border: 1px solid var(--secondary-color);
+  border-bottom: 4px solid var(--secondary-color);
   border-radius: 8px;
   font-family: var(--font-family);
   font-size: 16px;
   padding: 10px;
-  caret-color: #a5c9ca;
+  caret-color: var(--secondary-color);
   color: var(--text-color);
 }
 
 button {
-  border: 1px solid var(--text-color);
+  border: 1px solid var(--secondary-color);
   font-family: var(--font-family);
   border-radius: 8px;
   padding: 10px;
   font-size: medium;
   font-weight: bold;
-  color: var(--text-color);
+  color: var(--bg-color);
   cursor: pointer;
-  background: transparent;
+  background: var(--secondary-color);
   width: 80%;
+  transition: all 0.3s ease-in-out;
 }
 button:hover {
-  border-color: #395b64;
-  color: #649baa;
-  background-color: #395b6409;
-  transition: all 0.3s ease-in-out;
+  border-color: var(--secondary-color);
+  color: var(--secondary-color);
+  background-color: transparent;
 }
 
 h2 {
@@ -201,9 +208,16 @@ h2 {
 }
 /*============= Wrapper Styles ===========*/
 .wrapper {
-  width: 100%;
   max-width: 800px;
   margin: 10px auto;
+  @media screen and (max-width: 768px) {
+    padding: 0 12px;
+    margin: 5px auto;
+  }
+  @media screen and (max-width: 1024px) {
+    padding: 0 20px;
+    margin: 5px auto;
+  }
 }
 /*============= Form Styles ===========*/
 .complain-form {
@@ -296,7 +310,7 @@ h2 {
   background-color: var(--error-color);
 }
 
-/* ===== Scrollbar CSS ===== */
+/* ============== Scrollbar CSS ==================  */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
