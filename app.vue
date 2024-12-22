@@ -3,22 +3,35 @@
     <h2>Submit a Complaint</h2>
 
     <!-- Form to add a new complaint -->
-    <div class="complain-form">
-      <input v-model="title" type="text" placeholder="Title" />
-      <textarea v-model="body" placeholder="Enter your complaint"></textarea>
+    <form class="complain-form" @submit.prevent="saveComplain">
+      <div class="form-group">
+        <input
+          v-model="title"
+          type="text"
+          placeholder="Enter title"
+          :class="{ 'error-input': errors.title }"
+        />
+        <p v-if="errors.title" class="error-message">{{ errors.title }}</p>
+      </div>
 
-      <button @click="saveComplain">Submit Complaint</button>
+      <div class="form-group">
+        <textarea
+          v-model="body"
+          placeholder="Enter your complaint"
+          :class="{ 'error-input': errors.body }"
+        ></textarea>
+        <p v-if="errors.body" class="error-message">{{ errors.body }}</p>
+      </div>
 
-      <!-- Place Simple text loader when saving -->
-
-      <!-- Show Error message if any error is occured-->
-    </div>
+      <button :disabled="isSaving" type="submit">
+        {{ isSaving ? "Saving..." : "Submit Complaint" }}
+      </button>
+    </form>
 
     <h2>Complaints List</h2>
 
-    <!-- Simple text loader when loading -->
-    <div v-if="isLoading">Loading...</div>
-    <!-- List of complaints -->
+    <!-- Simple loader while loading -->
+    <div v-if="isLoading === 'pending'" class="loader">Loading...</div>
     <template v-else-if="complains.length">
       <div
         v-for="complain in complains"
@@ -32,6 +45,11 @@
     <div v-else>
       <p>No complaints available.</p>
     </div>
+
+    <!-- Toast Notification -->
+    <div v-if="toast.message" :class="['toast', toast.type]">
+      {{ toast.message }}
+    </div>
   </div>
 </template>
 
@@ -40,78 +58,262 @@ const baseUrl = "https://sugarytestapi.azurewebsites.net/";
 const listPath = "TestApi/GetComplains";
 const savePath = "TestApi/SaveComplain";
 
-const complains = ref([]);
 const title = ref("");
 const body = ref("");
+const errors = ref({ title: null, body: null });
+const toast = ref({ message: "", type: "" });
+const submitted = ref(false);
 const isSaving = ref(false);
-const errorMessage = ref("");
 
-const isLoading = ref(false);
-
-// Fetch complaints from the API
-const fetchComplains = async () => {
-  isLoading.value = true;
-  const response = await fetch(`${baseUrl}${listPath}`);
-  const data = await response.json();
-  complains.value = data;
-  isLoading.value = false;
-};
-
-// Save a new complaint
-const saveComplain = async () => {
-  try {
-    isSaving.value = true;
-    const response = await fetch(`${savePath}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        Title: "Test Title",
-        Body: "Test Body",
-      }),
-    });
-    const data = await response.json();
-    console.log(data);
-    if (!data.Success) throw new Error("Failed to save complaint.");
-    // update list of conplaints on success
-  } catch (e) {
-    // handle error
-  } finally {
-    isSaving.value = false;
-  }
-};
-
-onMounted(() => {
-  // call fetchComplains when component is mounted
+// Fetch complaints using useFetch
+const {
+  data: complains,
+  refresh: refreshComplains,
+  pending: isLoading,
+} = useFetch(`${baseUrl}${listPath}`, {
+  key: "fetchComplains",
+  method: "GET",
+  onRequestError: () => showToast("Failed to fetch complaints.", "error"),
 });
+
+// Validate form inputs
+const validateForm = () => {
+  if (submitted.value) {
+    errors.value.title = title.value.trim() ? "" : "Title is required.";
+    errors.value.body = body.value.trim() ? "" : "Complaint body is required.";
+  }
+  return !errors.value.title && !errors.value.body;
+};
+// Watch fields for validation errors after submission
+watch([title, body], () => {
+  if (submitted.value) validateForm();
+});
+
+// Save a new complaint using useLazyFetch
+const saveComplain = async () => {
+  submitted.value = true; // Mark form as submitted
+  if (!validateForm()) return;
+
+  isSaving.value = true; // Show "Saving..." status
+
+  const { execute } = useLazyFetch(`${baseUrl}${savePath}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: {
+      Title: title.value,
+      Body: body.value,
+    },
+    onResponse: ({ response }) => {
+      if (response.ok) {
+        showToast("Complaint saved successfully!", "success");
+        title.value = "";
+        body.value = "";
+        submitted.value = false; // Reset form submission state
+        refreshComplains();
+      } else {
+        showToast("Failed to save complaint.", "error");
+      }
+    },
+    onResponseError: () => {
+      showToast("Failed to save complaint.", "error");
+    },
+    immediate: false, // Do not run until explicitly executed
+  });
+
+  await execute();
+  isSaving.value = false; // Hide "Saving..." status
+};
+
+// Show toast notification
+const showToast = (message, type) => {
+  toast.value = { message, type };
+  setTimeout(() => {
+    toast.value.message = "";
+  }, 3000);
+};
 </script>
 
 <style>
-.wrapper {
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
+/*============= Import Google Fonts ===========*/
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap");
+/*============= Variables ===========*/
+:root {
+  --bg-color: #2c3333;
+  --primery-color: #395b64;
+  --secondary-color: #a5c9ca;
+  --text-color: #e7f6f2;
+  --font-family: "Fira Code", monospace;
+  --error-color: rgba(243, 94, 94, 0.973);
 }
-
-.complain-form {
-  margin-bottom: 20px;
-}
-
-.complain-form input,
-.complain-form textarea {
-  width: 100%;
-  margin-bottom: 10px;
-  padding: 8px;
+/*============= Reset Browser ===========*/
+* {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
 }
-
-.complain-form button {
-  padding: 8px;
+/*============= Global Styles ===========*/
+html,
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-family);
+  height: 100%;
+}
+/*============= Global Input/Button/H2 Styles ===========*/
+input,
+textarea {
+  outline: none;
+  background: transparent;
+  border: 1px solid var(--text-color);
+  border-bottom: 4px solid var(--text-color);
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 16px;
+  padding: 10px;
+  caret-color: #a5c9ca;
+  color: var(--text-color);
 }
 
+button {
+  border: 1px solid var(--text-color);
+  font-family: var(--font-family);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: medium;
+  font-weight: bold;
+  color: var(--text-color);
+  cursor: pointer;
+  background: transparent;
+  width: 80%;
+}
+button:hover {
+  border-color: #395b64;
+  color: #649baa;
+  background-color: #395b6409;
+  transition: all 0.3s ease-in-out;
+}
+
+h2 {
+  margin: 20px 0px;
+  font-size: 28px;
+}
+/*============= Wrapper Styles ===========*/
+.wrapper {
+  width: 100%;
+  max-width: 800px;
+  margin: 10px auto;
+}
+/*============= Form Styles ===========*/
+.complain-form {
+  display: flex;
+  justify-items: center;
+  align-items: center;
+  flex-direction: column;
+}
+.form-group > input {
+  font-weight: 600;
+  font-size: 18px;
+}
+.form-group > textarea {
+  height: 130px;
+  resize: none;
+}
+.form-group {
+  display: flex;
+  justify-items: center;
+  align-items: left;
+  flex-direction: column;
+  margin-bottom: 15px;
+  width: 80%;
+}
+.form-group input.error-input,
+.form-group textarea.error-input {
+  border-color: var(--error-color);
+}
 .error-message {
-  color: red;
+  color: var(--error-color);
+  font-size: 14px;
+  margin-top: 5px;
+}
+.complain-form button:disabled {
+  background-color: #cccccc3b;
+  cursor: not-allowed;
+}
+/* Loader */
+.loader {
+  text-align: center;
+  font-size: 16px;
+}
+
+/*============= Complaint Item ===========*/
+.complain-item {
+  margin-bottom: 15px;
+  padding: 12px;
+  border: 1px solid #395b64;
+  border-radius: 8px;
+  border-left: 6px solid #395b64;
+  background-color: #395b6409;
+}
+.complain-item p {
   margin-top: 10px;
+  color: #a5c9ca;
+}
+/*============= Toast Notification ===========*/
+.toast {
+  position: fixed;
+  top: 50px;
+  right: 50px;
+  padding: 12px 20px;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 16px;
+  z-index: 100;
+  animation: slideIn 0.5s forwards, slideOut 0.5s 2.5s forwards;
+}
+@keyframes slideIn {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes slideOut {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+.toast.success {
+  background-color: var(--primery-color);
+}
+
+.toast.error {
+  background-color: var(--error-color);
+}
+
+/* ===== Scrollbar CSS ===== */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-button {
+  width: 2px;
+  height: 2px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #395b64;
+  border-radius: 50px;
+}
+::-webkit-scrollbar-track {
+  background-color: transparent;
+  border-radius: 50px;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 </style>
