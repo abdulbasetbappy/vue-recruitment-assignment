@@ -1,6 +1,5 @@
 <template>
   <div class="wrapper">
-
     <h2>Submit a Complaint</h2>
     <!-- Form to add a new complaint -->
     <form class="complain-form" @submit.prevent="saveComplain">
@@ -29,26 +28,26 @@
       </button>
     </form>
 
-
     <h2>Complaints List</h2>
     <!-- Simple loader while loading -->
     <div v-if="isLoading === 'pending'" class="loader">Loading...</div>
     <!-- Display complaints list -->
     <template v-else-if="complains.length">
-      <div
-        v-for="complain in complains"
-        :key="complain.Id"
-        class="complain-item"
-      >
-        <h3>{{ complain.Title }}</h3>
-        <p>{{ complain.Body }}</p>
+      <div class="complain-list-wrapper">
+        <div
+          v-for="complain in complains"
+          :key="complain.Id"
+          class="complain-item"
+        >
+          <h3>{{ complain.Title }}</h3>
+          <p>{{ complain.Body }}</p>
+        </div>
       </div>
     </template>
     <!-- No complaints available message -->
     <div v-else>
       <p>No complaints available.</p>
     </div>
-
 
     <!-- Toast Notification -->
     <div v-if="toast.message" :class="['toast', toast.type]">
@@ -73,7 +72,7 @@ const isSaving = ref(false);
 const {
   data: complains,
   refresh: refreshComplains,
-  status:isLoading,
+  status: isLoading,
 } = useFetch(`${baseUrl}${listPath}`, {
   key: "fetchComplains",
   method: "GET",
@@ -97,10 +96,10 @@ watch([title, body], () => {
 // Save a new complaint using useLazyFetch
 const saveComplain = async () => {
   // Mark form as submitted
-  submitted.value = true; 
+  submitted.value = true;
   if (!validateForm()) return;
-// Show "Saving..." status
-  isSaving.value = true; 
+  // Show "Saving..." status
+  isSaving.value = true;
 
   const { execute } = useLazyFetch(`${baseUrl}${savePath}`, {
     method: "POST",
@@ -262,6 +261,9 @@ h2 {
 }
 
 /*============= Complaint Item ===========*/
+.complain-list-wrapper{
+  padding-bottom: 20px;
+}
 .complain-item {
   margin-bottom: 15px;
   padding: 12px;
